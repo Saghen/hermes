@@ -1,0 +1,11 @@
+{
+  "name": "hermes",
+  "version": "1.0.0",
+  "description": "Generic interface for one and two way communication layer",
+  "main": "src/index.ts",
+  "author": "Liam Dyer <liamcdyer@gmail.com>",
+  "license": "MIT",
+  "optionalDependencies": {
+    "@types/chrome": "^0.0.246"
+  }
+}
