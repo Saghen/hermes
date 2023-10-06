@@ -1,17 +1,22 @@
 export type Path = string
-export type SendRequest<Path extends string, Args extends any[]> = {
+export type SendRequest = {
   __fkn__: true
   endpoint: true
   hash: string
-  path: Path
-  args: Args
+  path: string[]
+  args: any[]
 }
-export type SendResponse<Response> = { __fkn__: true; endpoint: true; hash: string; response: Response }
-export type SocketRequest<Path extends string, Args extends any[]> = {
+export type SendResponse<Response> = {
+  __fkn__: true
+  endpoint: true
+  hash: string
+  response: Response
+}
+export type SocketRequest = {
   __fkn__: true
   socket: true
-  path: Path
-  args: Args
+  path: string[]
+  args: any[]
 }
 
 export type EndpointHandler = (...args: any[]) => Promise<any>
@@ -28,7 +33,7 @@ export type Socket<Send, Receive> = {
 const createListener = <Args extends any[]>() => {
   const listeners: ((...args: Args) => void | Promise<void>)[] = []
   return {
-    push: (...args: Args) => listeners.forEach(listener => listener(...args)),
+    push: (...args: Args) => listeners.forEach((listener) => listener(...args)),
     add: (listener: (...args: Args) => void | Promise<void>): (() => void) => {
       listeners.push(listener)
       return () => listeners.splice(listeners.indexOf(listener), 1)
@@ -59,7 +64,10 @@ export const createSocket = <Send, Receive>(
 /// Utils
 export const generateHash = (rounds = 8) =>
   Array.from({ length: rounds }, Math.random)
-    .map(val => val.toString(36).slice(2, 6))
+    .map((val) => val.toString(36).slice(2, 6))
     .join('')
 
 export type Tail<T extends any[]> = T extends [any, ...infer U] ? U : never
+export type DeepRecord<Key extends keyof any, Value> = {
+  [key in Key]: Value | DeepRecord<Key, Value>
+}
