@@ -1,68 +1,45 @@
+import { Socket } from './socket'
+
 export type Path = string
-export type SendRequest = {
-  __fkn__: true
-  endpoint: true
-  hash: string
+export type Request = {
+  __hermes__: 'endpoint' | 'socket'
+  /**
+   * Defines the hermes instance that this request should be routed to
+   * Useful for when there's multiple hermes instances listening through the
+   * same interface such as postMessage
+   */
+  address: string
+  /** Unique identifier for this request. Equal to requestId in the response */
+  requestId: string
   path: string[]
   args: any[]
 }
-export type SendResponse<Response> = {
-  __fkn__: true
-  endpoint: true
-  hash: string
-  response: Response
-}
-export type SocketRequest = {
-  __fkn__: true
-  socket: true
-  path: string[]
-  args: any[]
+export type Response = {
+  __hermes__: 'endpoint'
+  /** Unique identifier for this request. Equal to requestId in the request */
+  requestId: string
+  /** Set if the request was successful */
+  value?: any
+  /** Set if the request failed */
+  error?: string
 }
 
 export type EndpointHandler = (...args: any[]) => Promise<any>
 export type SocketHandler = (socket: Socket<any, any>, ...args: any[]) => Promise<void>
 
-/// Sockets
-export type Socket<Send, Receive> = {
-  send: (message: Send) => Promise<void>
-  onMessage: (listener: (message: Receive) => void | Promise<void>) => () => void
-  close: () => Promise<void>
-  onClose: (listener: () => void | Promise<void>) => () => void
-}
+export type SendTransport = (message: Omit<Request, 'address'>) => Promise<Response>
+export type SocketTransport = (message: Omit<Request, 'address'>) => Promise<Socket<any, any>>
 
-const createListener = <Args extends any[]>() => {
-  const listeners: ((...args: Args) => void | Promise<void>)[] = []
-  return {
-    push: (...args: Args) => listeners.forEach((listener) => listener(...args)),
-    add: (listener: (...args: Args) => void | Promise<void>): (() => void) => {
-      listeners.push(listener)
-      return () => listeners.splice(listeners.indexOf(listener), 1)
-    },
+/// Errors
+export class HermesError extends Error {
+  constructor(message: string) {
+    super(`Internal Hermes Error: ${message}`)
   }
 }
-
-export const createSocket = <Send, Receive>(
-  sendTransport: (message: Send) => Promise<void>,
-  closeTransport: () => Promise<void>,
-) => {
-  const messageListener = createListener<[Receive]>()
-  const closeListener = createListener<[]>()
-
-  const socket: Socket<Send, Receive> = {
-    send: sendTransport,
-    onMessage: messageListener.add,
-    close: () => closeTransport().then(() => closeListener.push()),
-    onClose: closeListener.add,
-  }
-  return {
-    pushMessage: (message: Receive) => messageListener.push(message),
-    pushClose: () => closeListener.push(),
-    socket,
-  }
-}
+export class HermesUserError extends Error {}
 
 /// Utils
-export const generateHash = (rounds = 8) =>
+export const generateRandom = (rounds = 8) =>
   Array.from({ length: rounds }, Math.random)
     .map((val) => val.toString(36).slice(2, 6))
     .join('')

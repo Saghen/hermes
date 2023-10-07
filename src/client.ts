@@ -1,18 +1,17 @@
 import {
   DeepRecord,
   EndpointHandler,
+  HermesError,
   Path,
-  SendRequest,
-  Socket,
+  SendTransport,
+  SocketTransport,
   SocketHandler,
-  SocketRequest,
   Tail,
-  generateHash,
+  generateRandom,
+  HermesUserError,
 } from './common'
 
 /// Endpoints
-export type SendTransport = (message: SendRequest) => Promise<any>
-
 export const createEndpointClient = <Endpoints extends DeepRecord<Path, EndpointHandler>>(
   sendTransport: SendTransport,
 ): Endpoints => createEndpointClientInternal(sendTransport)
@@ -23,19 +22,28 @@ const createEndpointClientInternal = <Endpoints extends DeepRecord<Path, Endpoin
 ): Endpoints =>
   // @ts-expect-error Typescript can't understand proxy types
   new Proxy(
-    (...args: any[]) =>
-      sendTransport({ __fkn__: true, endpoint: true, hash: generateHash(), path, args }),
+    async (...args: any[]) => {
+      const requestId = generateRandom()
+      const response = await sendTransport({ __hermes__: 'endpoint', requestId, path, args })
+
+      if (!('__hermes__' in response))
+        throw new HermesError(
+          "Provided response wasn't made by us. Something went wrong with the transports",
+        )
+      if (response.requestId !== requestId)
+        throw new HermesError('Response hash does not match request hash')
+      if ('error' in response) throw new HermesUserError(response.error)
+      return response.value
+    },
     {
       get: (_, pathPart) => {
-        if (typeof pathPart !== 'string') throw new Error('Path must be a string')
+        if (typeof pathPart !== 'string') throw new HermesError('Path must be a string')
         return createEndpointClientInternal(sendTransport, [...path, pathPart])
       },
     },
   )
 
 /// Sockets
-export type SocketTransport = (message: SocketRequest) => Promise<Socket<any, any>>
-
 type SocketClientHandler<Handler extends SocketHandler> = (
   ...args: Tail<Parameters<Handler>>
 ) => Promise<Parameters<Handler>[0]>
@@ -43,7 +51,8 @@ type SocketClientHandler<Handler extends SocketHandler> = (
 export type SocketClient<Sockets extends DeepRecord<Path, SocketHandler>> = {
   [Path in keyof Sockets]: Sockets[Path] extends SocketHandler
     ? SocketClientHandler<Sockets[Path]>
-    : SocketClient<Sockets[Path]>
+    : // @ts-expect-error Not sure how to tell typescript that this isn't a SocketHandler
+      SocketClient<Sockets[Path]>
 }
 
 export const createSocketClient = <Sockets extends DeepRecord<Path, SocketHandler>>(
@@ -55,9 +64,13 @@ const createSocketClientInternal = <Sockets extends DeepRecord<Path, SocketHandl
   path: Path[] = [],
 ): SocketClient<Sockets> =>
   // @ts-expect-error Typescript can't understand proxy types
-  new Proxy((...args: any[]) => socketTransport({ __fkn__: true, socket: true, path, args }), {
-    get: (_, pathPart) => {
-      if (typeof pathPart !== 'string') throw new Error('Path must be a string')
-      return createSocketClientInternal(socketTransport, [...path, pathPart])
+  new Proxy(
+    (...args: any[]) =>
+      socketTransport({ __hermes__: 'socket', requestId: generateRandom(), path, args }),
+    {
+      get: (_, pathPart) => {
+        if (typeof pathPart !== 'string') throw new HermesError('Path must be a string')
+        return createSocketClientInternal(socketTransport, [...path, pathPart])
+      },
     },
-  })
+  )

@@ -1,16 +1,17 @@
 /// <reference types="@types/chrome" />
 
-import { SendTransport, SocketTransport } from '../client'
-import { Path, EndpointHandler, SocketHandler, createSocket, Socket } from '../common'
+import { SendTransport, SocketTransport } from '../common'
+import { Path, EndpointHandler, SocketHandler } from '../common'
+import { createSocket, Socket } from '../socket'
 import { Router } from '../router'
 
 const portToSocket = (port: chrome.runtime.Port): Socket<unknown, unknown> => {
-  const { pushMessage, pushClose, socket } = createSocket(
-    async message => port.postMessage(message),
+  const { sendMessage, sendClose, socket } = createSocket(
+    async (message) => port.postMessage(message),
     async () => port.disconnect(),
   )
-  port.onDisconnect.addListener(pushClose)
-  port.onMessage.addListener(pushMessage)
+  port.onDisconnect.addListener(sendClose)
+  port.onMessage.addListener(sendMessage)
   return socket
 }
 
@@ -24,20 +25,22 @@ export const listen = <
     router.handleEndpoint(response).then(sendResponse)
     return true
   })
-  chrome.runtime.onConnect.addListener(port => {
+  chrome.runtime.onConnect.addListener((port) => {
     router.handleSocket(portToSocket(port))
   })
 }
 
 export const createSendTransport =
-  (extensionId: string): SendTransport =>
-  request =>
-    new Promise(resolve => chrome.runtime.sendMessage(extensionId, request, resolve))
+  (extensionId: string, address: string): SendTransport =>
+  (request) =>
+    new Promise((resolve) =>
+      chrome.runtime.sendMessage(extensionId, { address, ...request }, resolve),
+    )
 
 export const createSocketTransport =
-  (extensionId: string): SocketTransport =>
-  async request => {
+  (extensionId: string, address: string): SocketTransport =>
+  async (request) => {
     const port = chrome.runtime.connect(extensionId)
-    port.postMessage(request)
+    port.postMessage({ address, ...request })
     return portToSocket(port)
   }

@@ -5,7 +5,15 @@
   "main": "src/index.ts",
   "author": "Liam Dyer <liamcdyer@gmail.com>",
   "license": "MIT",
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
   "optionalDependencies": {
     "@types/chrome": "^0.0.246"
+  },
+  "devDependencies": {
+    "bun-types": "^1.0.5-canary.20231006T140143",
+    "typescript": "^5.2.2"
   }
 }

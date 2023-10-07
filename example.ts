@@ -12,6 +12,7 @@ async function main() {
     deep: {
       echo: async (message: string) => message,
     },
+    fail: () => Promise.reject('This endpoint fails'),
   }
   const sockets = {
     echo: async (socket: Socket<any, any>) => {
@@ -28,6 +29,7 @@ async function main() {
   // Test endpoint client
   await endpointClient.add(1, 2).then(console.log)
   await endpointClient.deep.echo('foo').then(console.log)
+  await endpointClient.fail().catch(console.error)
 
   // Test socket client
   const socket = await socketClient.echo()

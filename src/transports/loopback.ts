@@ -1,35 +1,36 @@
-import { createSocket } from '../common'
+import { SendTransport, SocketTransport } from '../common'
+import { createSocket } from '../socket'
 import { Router } from '../router'
 
-export const createLoopback = () => {
+export const createLoopback = (address: string = 'default') => {
   let internalRouter: Router<any, any>
   const listen = (router: Router<any, any>) => {
     internalRouter = router
   }
-  const sendTransport = (request: any) => {
+  const sendTransport: SendTransport = (request) => {
     if (!internalRouter) throw new Error('No router has been set')
-    return internalRouter.handleEndpoint(request)
+    return internalRouter.handleEndpoint({ address, ...request })
   }
-  const socketTransport = async (request: any) => {
+  const socketTransport: SocketTransport = async (request) => {
     if (!internalRouter) throw new Error('No router has been set')
     const {
-      pushClose: pushCloseClient,
-      pushMessage: pushMessageClient,
+      sendClose: sendCloseClient,
+      sendMessage: sendMessageClient,
       socket: socketClient,
     } = createSocket(
-      async message => pushMessageServer(message),
-      async () => pushCloseServer(),
+      async (message) => sendMessageServer(message),
+      async () => sendCloseServer(),
     )
     const {
-      pushClose: pushCloseServer,
-      pushMessage: pushMessageServer,
+      sendClose: sendCloseServer,
+      sendMessage: sendMessageServer,
       socket: socketServer,
     } = createSocket(
-      async message => pushMessageClient(message),
-      async () => pushCloseClient(),
+      async (message) => sendMessageClient(message),
+      async () => sendCloseClient(),
     )
     internalRouter.handleSocket(socketServer)
-    pushMessageServer(request)
+    sendMessageServer({ address, ...request })
     return socketClient
   }
   return {
