@@ -12,10 +12,15 @@ export class SocketClosedError extends Error {
   }
 }
 
+export type SocketWrapper<Send, Receive> = {
+  sendMessage: (message: Receive) => void
+  sendClose: () => Promise<void>
+  socket: Socket<Send, Receive>
+}
 export const createSocket = <Send, Receive>(
   sendTransport: (message: Send) => Promise<void>,
   closeTransport: () => Promise<void>,
-) => {
+): SocketWrapper<Send, Receive> => {
   let queue: Receive[] = []
   let receiveRequests: [(value: Receive) => void, (err: Error) => void][] = []
 

@@ -6,14 +6,24 @@
   "author": "Liam Dyer <liamcdyer@gmail.com>",
   "license": "MIT",
   "scripts": {
+    "prepare": "husky install",
+    "prepublish": "bun run build",
+    "precommit": "lint-staged && bun run build && bun test",
+    "build": "tsc",
     "test": "bun test",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "format": "prettier --write 'src/*'"
+  },
+  "lint-staged": {
+    "*.ts": "prettier --write"
   },
   "optionalDependencies": {
     "@types/chrome": "^0.0.246"
   },
   "devDependencies": {
     "bun-types": "^1.0.5-canary.20231006T140143",
+    "husky": "^8.0.3",
+    "lint-staged": "^14.0.1",
     "typescript": "^5.2.2"
   }
 }

@@ -48,7 +48,7 @@ export const createRouter = <
   async handleEndpoint(request) {
     assertValidRequest('endpoint', request)
 
-    const endpointHandler = getPath(request.path, endpoints)
+    const endpointHandler = getFunctionPath(request.path, endpoints)
     if (endpointHandler === undefined)
       throw new HermesError(`Endpoint "${request.path}" does not exist`)
     if (typeof endpointHandler !== 'function')
@@ -64,7 +64,7 @@ export const createRouter = <
 
     assertValidRequest('socket', request)
 
-    const socketHandler = getPath(request.path, sockets)
+    const socketHandler = getFunctionPath(request.path, sockets)
     if (socketHandler === undefined)
       throw new HermesError(`Socket "${request.path}" does not exist`)
     if (typeof socketHandler !== 'function')
@@ -84,5 +84,8 @@ const assertValidRequest = (type: 'endpoint' | 'socket', request: Request) => {
   }
 }
 
-const getPath = <T>(path: Path[], record: DeepRecord<Path, T>) =>
-  path.reduce<T | DeepRecord<Path, T> | undefined>((value, pathPart) => value?.[pathPart], record)
+const getFunctionPath = <T extends Function>(path: Path[], record: DeepRecord<Path, T>) =>
+  path.reduce<T | DeepRecord<Path, T> | undefined>(
+    (value, pathPart) => (typeof value === 'function' ? undefined : value?.[pathPart]),
+    record,
+  )

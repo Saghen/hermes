@@ -15,19 +15,39 @@ const portToSocket = (port: chrome.runtime.Port): Socket<unknown, unknown> => {
   return socket
 }
 
+export type ListenOptions = {
+  listenToOnMessage?: boolean
+  listenToOnMessageExternal?: boolean
+  listenToOnConnect?: boolean
+}
 export const listen = <
   Endpoints extends Record<Path, EndpointHandler>,
   Sockets extends Record<Path, SocketHandler>,
 >(
   router: Router<Endpoints, Sockets>,
+  {
+    listenToOnMessage = true,
+    listenToOnMessageExternal = true,
+    listenToOnConnect = true,
+  }: ListenOptions = {},
 ) => {
-  chrome.runtime.onMessage.addListener((response, _, sendResponse) => {
-    router.handleEndpoint(response).then(sendResponse)
-    return true
-  })
-  chrome.runtime.onConnect.addListener((port) => {
-    router.handleSocket(portToSocket(port))
-  })
+  if (listenToOnMessage) {
+    chrome.runtime.onMessage.addListener((response, _, sendResponse) => {
+      router.handleEndpoint(response).then(sendResponse)
+      return true
+    })
+  }
+  if (listenToOnMessageExternal) {
+    chrome.runtime.onMessageExternal.addListener((response, _, sendResponse) => {
+      router.handleEndpoint(response).then(sendResponse)
+      return true
+    })
+  }
+  if (listenToOnConnect) {
+    chrome.runtime.onConnect.addListener((port) => {
+      router.handleSocket(portToSocket(port))
+    })
+  }
 }
 
 export const createSendTransport =
