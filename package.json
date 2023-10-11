@@ -3,6 +3,7 @@
   "version": "2.0.0-alpha.0",
   "author": "Liam Dyer <liamcdyer@gmail.com>",
   "description": "Generic interface for one and two way communication layer",
+  "repository": "https://github.com/Saghen/hermes",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
