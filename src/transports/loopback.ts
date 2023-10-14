@@ -2,14 +2,14 @@ import { HermesError, SendTransport, SocketTransport } from '../common'
 import { SocketWrapper, createSocket } from '../socket'
 import { Router } from '../router'
 
-export const createLoopback = (address: string = 'default') => {
+export const createLoopback = (address = 'default') => {
   let internalRouter: Router<any, any>
   const listen = (router: Router<any, any>) => {
     internalRouter = router
   }
   const sendTransport: SendTransport = (request) => {
     if (!internalRouter) throw new HermesError('No router has been set')
-    return internalRouter.handleEndpoint({ address, ...request })
+    return internalRouter.handleEndpoint({ address, ...request }, {})
   }
   const socketTransport: SocketTransport = async (request) => {
     if (!internalRouter) throw new HermesError('No router has been set')
@@ -29,7 +29,7 @@ export const createLoopback = (address: string = 'default') => {
       async (message) => sendMessageClient(message),
       async () => sendCloseClient(),
     )
-    internalRouter.handleSocket(socketServer)
+    internalRouter.handleSocket(socketServer, {})
     sendMessageServer({ address, ...request })
     return socketClient
   }

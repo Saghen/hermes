@@ -9,17 +9,37 @@ import {
   Tail,
   generateRandom,
   HermesUserError,
+  Default,
+  RequestMetadata,
+  Last,
+  Init,
 } from './common'
+import { Socket } from './socket'
+
+// Removes the RequestMetadata argument from the handler if it's defined
+// since this is injected by the transport and not by the client
+type ClientHandler<Handler extends EndpointHandler> = (
+  ...args: Last<Parameters<Handler>> extends RequestMetadata<Record<never, never>>
+    ? Init<Parameters<Handler>>
+    : Parameters<Handler>
+) => Promise<Awaited<ReturnType<Handler>>>
 
 /// Endpoints
+export type EndpointClient<Endpoints extends DeepRecord<Path, EndpointHandler>> = {
+  [Path in keyof Endpoints]: Endpoints[Path] extends EndpointHandler
+    ? ClientHandler<Endpoints[Path]>
+    : // @ts-expect-error Not sure how to tell typescript that this isn't a EndpointHandler
+      EndpointClient<Endpoints[Path]>
+}
+
 export const createEndpointClient = <Endpoints extends DeepRecord<Path, EndpointHandler>>(
   sendTransport: SendTransport,
-): Endpoints => createEndpointClientInternal(sendTransport)
+): EndpointClient<Endpoints> => createEndpointClientInternal(sendTransport)
 
 const createEndpointClientInternal = <Endpoints extends DeepRecord<Path, EndpointHandler>>(
   sendTransport: SendTransport,
   path: Path[] = [],
-): Endpoints =>
+): EndpointClient<Endpoints> =>
   // @ts-expect-error Typescript can't understand proxy types
   new Proxy(
     async (...args: any[]) => {
@@ -44,13 +64,15 @@ const createEndpointClientInternal = <Endpoints extends DeepRecord<Path, Endpoin
   )
 
 /// Sockets
+// Removes the Socket argument from the handler if it's defined
+// since this is injected by the transport and not by the client
 type SocketClientHandler<Handler extends SocketHandler> = (
   ...args: Tail<Parameters<Handler>>
-) => Promise<Parameters<Handler>[0]>
+) => Promise<Default<Parameters<Handler>[0], Socket<never, never>>>
 
 export type SocketClient<Sockets extends DeepRecord<Path, SocketHandler>> = {
   [Path in keyof Sockets]: Sockets[Path] extends SocketHandler
-    ? SocketClientHandler<Sockets[Path]>
+    ? ClientHandler<SocketClientHandler<Sockets[Path]>>
     : // @ts-expect-error Not sure how to tell typescript that this isn't a SocketHandler
       SocketClient<Sockets[Path]>
 }

@@ -1,9 +1,10 @@
 /// <reference types="@types/chrome" />
 
-import { SendTransport, SocketTransport } from '../common'
-import { Path, EndpointHandler, SocketHandler } from '../common'
+import { RequestMetadata, SendTransport, SocketTransport } from '../common'
 import { createSocket, Socket } from '../socket'
 import { Router } from '../router'
+
+export type ExtensionRequestMetadata = RequestMetadata<chrome.runtime.MessageSender>
 
 const portToSocket = (port: chrome.runtime.Port): Socket<unknown, unknown> => {
   const { sendMessage, sendClose, socket } = createSocket(
@@ -15,50 +16,41 @@ const portToSocket = (port: chrome.runtime.Port): Socket<unknown, unknown> => {
   return socket
 }
 
-export type ListenOptions = {
-  listenToOnMessage?: boolean
-  listenToOnMessageExternal?: boolean
-  listenToOnConnect?: boolean
+export const listenOnMessage = (router: Router<any, any>, address = 'default') => {
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.address !== address) return
+    router.handleEndpoint(request, sender).then(sendResponse)
+    return true
+  })
 }
-export const listen = <
-  Endpoints extends Record<Path, EndpointHandler>,
-  Sockets extends Record<Path, SocketHandler>,
->(
-  router: Router<Endpoints, Sockets>,
-  {
-    listenToOnMessage = true,
-    listenToOnMessageExternal = true,
-    listenToOnConnect = true,
-  }: ListenOptions = {},
-) => {
-  if (listenToOnMessage) {
-    chrome.runtime.onMessage.addListener((response, _, sendResponse) => {
-      router.handleEndpoint(response).then(sendResponse)
-      return true
-    })
-  }
-  if (listenToOnMessageExternal) {
-    chrome.runtime.onMessageExternal.addListener((response, _, sendResponse) => {
-      router.handleEndpoint(response).then(sendResponse)
-      return true
-    })
-  }
-  if (listenToOnConnect) {
-    chrome.runtime.onConnect.addListener((port) => {
-      router.handleSocket(portToSocket(port))
-    })
-  }
+export const listenOnMessageExternal = (router: Router<any, any>, address = 'default') => {
+  chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => {
+    if (request.address !== address) return
+    router.handleEndpoint(request, sender).then(sendResponse)
+    return true
+  })
+}
+// FIXME: Doesn't handle address
+export const listenOnConnect = (router: Router<any, any>) => {
+  chrome.runtime.onConnect.addListener((port) => {
+    router.handleSocket(portToSocket(port), {})
+  })
+}
+export const listenOnConnectExternal = (router: Router<any, any>) => {
+  chrome.runtime.onConnectExternal.addListener((port) => {
+    router.handleSocket(portToSocket(port), {})
+  })
 }
 
 export const createSendTransport =
-  (extensionId: string, address: string): SendTransport =>
+  (extensionId: string, address = 'default'): SendTransport =>
   (request) =>
     new Promise((resolve) =>
       chrome.runtime.sendMessage(extensionId, { address, ...request }, resolve),
     )
 
 export const createSocketTransport =
-  (extensionId: string, address: string): SocketTransport =>
+  (extensionId: string, address = 'default'): SocketTransport =>
   async (request) => {
     const port = chrome.runtime.connect(extensionId)
     port.postMessage({ address, ...request })

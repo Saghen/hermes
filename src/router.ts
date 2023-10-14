@@ -4,6 +4,7 @@ import {
   HermesError,
   Path,
   Request,
+  RequestMetadata,
   Response,
   SocketHandler,
 } from './common'
@@ -16,8 +17,8 @@ export type Router<
   endpoints: Endpoints
   sockets: Sockets
 
-  handleEndpoint: (request: Request) => Promise<Response>
-  handleSocket: (socket: Socket<any, any>) => Promise<void>
+  handleEndpoint: (request: Request, metadata: Record<any, any>) => Promise<Response>
+  handleSocket: (socket: Socket<any, any>, metadata: Record<any, any>) => Promise<void>
 }
 
 const valueToResponse =
@@ -45,7 +46,7 @@ export const createRouter = <
   endpoints,
   sockets,
 
-  async handleEndpoint(request) {
+  async handleEndpoint(request, metadata) {
     assertValidRequest('endpoint', request)
 
     const endpointHandler = getFunctionPath(request.path, endpoints)
@@ -53,12 +54,13 @@ export const createRouter = <
       throw new HermesError(`Endpoint "${request.path}" does not exist`)
     if (typeof endpointHandler !== 'function')
       throw new HermesError(`Endpoint "${request.path}" is not a function`)
-    return endpointHandler(...request.args)
+    return Promise.resolve()
+      .then(() => endpointHandler(...request.args, metadata))
       .then(valueToResponse(request))
       .catch(errorToResponse(request))
   },
 
-  async handleSocket(socket) {
+  async handleSocket(socket, metadata) {
     // Retrieve the initial request
     const request = await socket.receive()
 
@@ -69,7 +71,8 @@ export const createRouter = <
       throw new HermesError(`Socket "${request.path}" does not exist`)
     if (typeof socketHandler !== 'function')
       throw new HermesError(`Socket "${request.path}" is not a function`)
-    return socketHandler(socket, ...request.args)
+    // FIXME: Error handling should close the socket and send an error message to the client
+    return Promise.resolve().then(() => socketHandler(socket, ...request.args, metadata))
   },
 })
 
