@@ -1,10 +1,10 @@
 /// <reference types="bun-types" />
 import { expect, describe, it } from 'bun:test'
 import { createEndpointClient, createSocketClient } from './client'
-import { HermesError, HermesUserError, SendTransport, SocketTransport } from './common'
+import { HermesError, HermesUserError, EndpointTransport, SocketTransport } from './common'
 import { Socket, createSocket } from './socket'
 
-const dummyTransport: SendTransport = async (request) => ({
+const dummyTransport: EndpointTransport = async (request) => ({
   __hermes__: 'endpoint',
   requestId: request.requestId,
   value: request.args[0],
@@ -107,16 +107,14 @@ describe('createSocketClient', () => {
   const dummyTransport: SocketTransport = async () => dummySocket
 
   it('should accept any string key', () => {
-    const client = createSocketClient<{ foo: (socket: Socket<any, any>) => Promise<void> }>(
-      dummyTransport,
-    )
+    const client = createSocketClient<{ foo: (socket: Socket) => Promise<void> }>(dummyTransport)
     expect(client.foo).toBeTypeOf('function')
     expect(client.foo()).resolves.not.toBeUndefined()
   })
 
   it('should accept any deep nested string key', () => {
     const client = createSocketClient<{
-      foo: { bar: (socket: Socket<any, any>) => Promise<void> }
+      foo: { bar: (socket: Socket) => Promise<void> }
     }>(dummyTransport)
     expect(client.foo.bar).toBeTypeOf('function')
     expect(client.foo.bar()).resolves.not.toBeUndefined()

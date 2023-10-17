@@ -12,6 +12,7 @@ export type Request = {
   address: string
   /** Unique identifier for this request. Equal to requestId in the response */
   requestId: string
+
   path: string[]
   args: any[]
 }
@@ -27,15 +28,19 @@ export type Response = {
 }
 
 /** Transport dependent metadata passed as the last argument for the handlers */
+export const RequestMetadataSymbol = Symbol('HermesRequestMetadata')
 export type RequestMetadata<Metadata extends Record<never, never>> = {
-  __hermes__: Symbol
+  __hermes__: typeof RequestMetadataSymbol
 } & Metadata
 
 export type EndpointHandler = (...args: any[]) => any
-export type SocketHandler = (socket: Socket<any, any>, ...args: any[]) => void | Promise<void>
+export type SocketHandler<Send = unknown, Receive = unknown> = (
+  socket: Socket<Send, Receive>,
+  ...args: any[]
+) => void | Promise<void>
 
-export type SendTransport = (message: Omit<Request, 'address'>) => Promise<Response>
-export type SocketTransport = (message: Omit<Request, 'address'>) => Promise<Socket<any, any>>
+export type EndpointTransport = (message: Omit<Request, 'address'>) => Promise<Response>
+export type SocketTransport = (message: Omit<Request, 'address'>) => Promise<Socket>
 
 /// Errors
 export class HermesError extends Error {

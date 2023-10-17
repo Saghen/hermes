@@ -7,6 +7,16 @@
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js",
+    "./client": "./dist/client.js",
+    "./router": "./dist/router.js",
+    "./socket": "./dist/socket.js",
+    "./transports/extension": "./dist/transports/extension.js",
+    "./transports/loopback": "./dist/transports/loopback.js",
+    "./transports/web": "./dist/transports/web.js"
+  },
   "scripts": {
     "prepare": "husky install",
     "prepublish": "bun run build",
@@ -20,7 +30,7 @@
     "*.ts": "prettier --write"
   },
   "optionalDependencies": {
-    "@types/chrome": "^0.0.246"
+    "@types/webextension-polyfill": "^0.10.4"
   },
   "devDependencies": {
     "bun-types": "^1.0.5-canary.20231006T140143",

@@ -10,15 +10,15 @@ import {
 } from './common'
 import { Socket } from './socket'
 
-export type Router<
-  Endpoints extends DeepRecord<Path, EndpointHandler>,
-  Sockets extends DeepRecord<Path, SocketHandler>,
-> = {
+export type Router<Endpoints extends DeepRecord<Path, EndpointHandler>, Sockets> = {
   endpoints: Endpoints
   sockets: Sockets
 
-  handleEndpoint: (request: Request, metadata: Record<any, any>) => Promise<Response>
-  handleSocket: (socket: Socket<any, any>, metadata: Record<any, any>) => Promise<void>
+  handleEndpoint: (
+    request: Request,
+    metadata: RequestMetadata<Record<any, any>>,
+  ) => Promise<Response>
+  handleSocket: (socket: Socket, metadata: RequestMetadata<Record<any, any>>) => Promise<void>
 }
 
 const valueToResponse =
@@ -54,6 +54,7 @@ export const createRouter = <
       throw new HermesError(`Endpoint "${request.path}" does not exist`)
     if (typeof endpointHandler !== 'function')
       throw new HermesError(`Endpoint "${request.path}" is not a function`)
+    // FIXME: Check the number of arguments for the function and fill the args with undefined if needed
     return Promise.resolve()
       .then(() => endpointHandler(...request.args, metadata))
       .then(valueToResponse(request))
@@ -72,11 +73,17 @@ export const createRouter = <
     if (typeof socketHandler !== 'function')
       throw new HermesError(`Socket "${request.path}" is not a function`)
     // FIXME: Error handling should close the socket and send an error message to the client
+    // FIXME: Check the number of arguments for the function and fill the args with undefined if needed
     return Promise.resolve().then(() => socketHandler(socket, ...request.args, metadata))
   },
 })
 
-const assertValidRequest = (type: 'endpoint' | 'socket', request: Request) => {
+function assertValidRequest(
+  type: 'endpoint' | 'socket',
+  request: unknown,
+): asserts request is Request {
+  if (typeof request !== 'object' || request === null)
+    throw new HermesError('Request must be an object')
   if (!('__hermes__' in request))
     throw new HermesError("Request missing __hermes__ key. It likely wasn't made by us")
   if (request.__hermes__ !== type) throw new HermesError(`Request is not a ${type} request`)

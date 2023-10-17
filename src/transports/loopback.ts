@@ -1,15 +1,29 @@
-import { HermesError, SendTransport, SocketTransport } from '../common'
+import {
+  HermesError,
+  EndpointTransport,
+  SocketTransport,
+  RequestMetadataSymbol,
+  RequestMetadata,
+} from '../common'
 import { SocketWrapper, createSocket } from '../socket'
 import { Router } from '../router'
 
+export type LoopbackRequestMetadata = RequestMetadata<Record<never, never>>
+const makeMetadata = (): LoopbackRequestMetadata => ({
+  __hermes__: RequestMetadataSymbol,
+})
+
 export const createLoopback = (address = 'default') => {
-  let internalRouter: Router<any, any>
+  let internalRouter: Router<any, any> | undefined
   const listen = (router: Router<any, any>) => {
     internalRouter = router
+    return () => {
+      internalRouter = undefined
+    }
   }
-  const sendTransport: SendTransport = (request) => {
+  const endpointTransport: EndpointTransport = (request) => {
     if (!internalRouter) throw new HermesError('No router has been set')
-    return internalRouter.handleEndpoint({ address, ...request }, {})
+    return internalRouter.handleEndpoint({ address, ...request }, makeMetadata())
   }
   const socketTransport: SocketTransport = async (request) => {
     if (!internalRouter) throw new HermesError('No router has been set')
@@ -29,13 +43,13 @@ export const createLoopback = (address = 'default') => {
       async (message) => sendMessageClient(message),
       async () => sendCloseClient(),
     )
-    internalRouter.handleSocket(socketServer, {})
+    internalRouter.handleSocket(socketServer, makeMetadata())
     sendMessageServer({ address, ...request })
     return socketClient
   }
   return {
     listen,
-    sendTransport,
+    endpointTransport,
     socketTransport,
   }
 }

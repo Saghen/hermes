@@ -5,8 +5,8 @@ Hermes provides a generic interface for one way (Endpoints) and two way (Sockets
 ## Usage
 
 ```ts
-import { createEndpointClient, createSocketClient, Socket } from 'hermes'
-import { createLoopback } from 'hermes/transports/loopback'
+import { createRouter, createEndpointClient, createSocketClient, Socket } from './src'
+import { createLoopback, LoopbackRequestMetadata } from './src/transports/loopback'
 
 const loopback = createLoopback()
 
@@ -17,6 +17,7 @@ const endpoints = {
     echo: async (message: string) => message,
   },
   fail: () => Promise.reject('This endpoint fails'),
+  metadata: async (hello: 'world', metadata: LoopbackRequestMetadata) => hello,
 }
 const sockets = {
   echo: async (socket: Socket<any, any>) => {
@@ -24,18 +25,20 @@ const sockets = {
       await socket.send(message)
     }
   },
+  test: async () => {},
 }
 const router = createRouter(endpoints, sockets)
 loopback.listen(router)
 
 // Setup clients
-const endpointClient = createEndpointClient<typeof router.endpoints>(loopback.sendTransport)
+const endpointClient = createEndpointClient<typeof router.endpoints>(loopback.endpointTransport)
 const socketClient = createSocketClient<typeof router.sockets>(loopback.socketTransport)
 
 // Test endpoint client
 await endpointClient.add(1, 2).then(console.log) // '3'
 await endpointClient.deep.echo('foo').then(console.log) // 'foo'
 await endpointClient.fail().catch(console.error) // 'This endpoint fails'
+await endpointClient.metadata('world') // the second argument metadata passed by loopback transport
 
 // Test socket client
 const socket = await socketClient.echo()

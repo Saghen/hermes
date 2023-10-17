@@ -3,7 +3,7 @@ export type {
   Request,
   Response,
   Path,
-  SendTransport,
+  EndpointTransport,
   SocketTransport,
   EndpointHandler,
   SocketHandler,

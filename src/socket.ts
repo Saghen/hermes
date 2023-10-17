@@ -1,4 +1,4 @@
-export type Socket<Send, Receive> = {
+export type Socket<Send = unknown, Receive = unknown> = {
   send: (message: Send) => Promise<void>
   receive: () => Promise<Receive>
   receiveIter: () => AsyncGenerator<Receive>

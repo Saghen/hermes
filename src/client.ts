@@ -3,7 +3,7 @@ import {
   EndpointHandler,
   HermesError,
   Path,
-  SendTransport,
+  EndpointTransport,
   SocketTransport,
   SocketHandler,
   Tail,
@@ -33,18 +33,23 @@ export type EndpointClient<Endpoints extends DeepRecord<Path, EndpointHandler>> 
 }
 
 export const createEndpointClient = <Endpoints extends DeepRecord<Path, EndpointHandler>>(
-  sendTransport: SendTransport,
-): EndpointClient<Endpoints> => createEndpointClientInternal(sendTransport)
+  endpointTransport: EndpointTransport,
+): EndpointClient<Endpoints> => createEndpointClientInternal(endpointTransport)
 
 const createEndpointClientInternal = <Endpoints extends DeepRecord<Path, EndpointHandler>>(
-  sendTransport: SendTransport,
+  endpointTransport: EndpointTransport,
   path: Path[] = [],
 ): EndpointClient<Endpoints> =>
   // @ts-expect-error Typescript can't understand proxy types
   new Proxy(
     async (...args: any[]) => {
       const requestId = generateRandom()
-      const response = await sendTransport({ __hermes__: 'endpoint', requestId, path, args })
+      const response = await endpointTransport({
+        __hermes__: 'endpoint',
+        requestId,
+        path,
+        args,
+      })
 
       if (!('__hermes__' in response))
         throw new HermesError(
@@ -58,7 +63,7 @@ const createEndpointClientInternal = <Endpoints extends DeepRecord<Path, Endpoin
     {
       get: (_, pathPart) => {
         if (typeof pathPart !== 'string') throw new HermesError('Path must be a string')
-        return createEndpointClientInternal(sendTransport, [...path, pathPart])
+        return createEndpointClientInternal(endpointTransport, [...path, pathPart])
       },
     },
   )
@@ -88,7 +93,12 @@ const createSocketClientInternal = <Sockets extends DeepRecord<Path, SocketHandl
   // @ts-expect-error Typescript can't understand proxy types
   new Proxy(
     (...args: any[]) =>
-      socketTransport({ __hermes__: 'socket', requestId: generateRandom(), path, args }),
+      socketTransport({
+        __hermes__: 'socket',
+        requestId: generateRandom(),
+        path,
+        args,
+      }),
     {
       get: (_, pathPart) => {
         if (typeof pathPart !== 'string') throw new HermesError('Path must be a string')

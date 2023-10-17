@@ -2,8 +2,10 @@
 import { expect, describe, it } from 'bun:test'
 
 import { createRouter } from './router'
-import { HermesError, Request, RequestMetadata } from './common'
+import { HermesError, Request, RequestMetadata, RequestMetadataSymbol } from './common'
 import { createSocket as _createSocket } from './socket'
+
+const dummyMetadata: RequestMetadata<Record<never, never>> = { __hermes__: RequestMetadataSymbol }
 
 describe('createRouter', () => {
   it('should create a router with endpoints and sockets', () => {
@@ -30,40 +32,40 @@ describe('handleEndpoint', () => {
 
   it('should reject requests without __hermes__ field', () => {
     const router = createRouter({}, {})
-    expect(router.handleEndpoint({} as any, {})).rejects.toBeInstanceOf(HermesError)
+    expect(router.handleEndpoint({} as any, dummyMetadata)).rejects.toBeInstanceOf(HermesError)
   })
 
   it('should reject requests when the __hermes__ field isn\'t equal to "endpoint"', () => {
     const router = createRouter({}, {})
-    expect(router.handleEndpoint({ __hermes__: 'foo' } as any, {})).rejects.toBeInstanceOf(
-      HermesError,
-    )
+    expect(
+      router.handleEndpoint({ __hermes__: 'foo' } as any, dummyMetadata),
+    ).rejects.toBeInstanceOf(HermesError)
   })
 
   it("should reject when the request doesn't include an address", () => {
     const router = createRouter({}, {})
-    expect(router.handleEndpoint({ __hermes__: 'endpoint' } as any, {})).rejects.toBeInstanceOf(
-      HermesError,
-    )
+    expect(
+      router.handleEndpoint({ __hermes__: 'endpoint' } as any, dummyMetadata),
+    ).rejects.toBeInstanceOf(HermesError)
   })
 
   it('should return a response with the same requestId', async () => {
     const router = createRouter({ noop: async () => {} }, {})
     const request = createRequest(['noop'])
-    const response = await router.handleEndpoint(request, {})
+    const response = await router.handleEndpoint(request, dummyMetadata)
     expect(response.requestId).toEqual(request.requestId)
   })
 
   it('should fail when the endpoint does not exist', () => {
     const router = createRouter({}, {})
-    expect(router.handleEndpoint(createRequest(['example']), {})).rejects.toBeInstanceOf(
+    expect(router.handleEndpoint(createRequest(['example']), dummyMetadata)).rejects.toBeInstanceOf(
       HermesError,
     )
   })
 
   it('should fail when the endpoint is not a function', () => {
     const router = createRouter({ example: { noop: async () => {} } }, {})
-    expect(router.handleEndpoint(createRequest(['example']), {})).rejects.toBeInstanceOf(
+    expect(router.handleEndpoint(createRequest(['example']), dummyMetadata)).rejects.toBeInstanceOf(
       HermesError,
     )
   })
@@ -78,22 +80,25 @@ describe('handleEndpoint', () => {
       {},
     )
 
-    const response = await router.handleEndpoint(createRequest(['foo'], [1, 2]), {})
+    const response = await router.handleEndpoint(createRequest(['foo'], [1, 2]), dummyMetadata)
     expect(response.value).toEqual(3)
 
-    const metadata = await router.handleEndpoint(createRequest(['metadata'], []), { foo: 'bar' })
+    const metadata = await router.handleEndpoint(createRequest(['metadata'], []), {
+      ...dummyMetadata,
+      foo: 'bar',
+    })
     expect(metadata.value).toEqual('bar')
   })
 
   it('should return the error as a string when the endpoint fails', async () => {
     const router = createRouter({ foo: () => Promise.reject(new Error('foo')) }, {})
-    const response = await router.handleEndpoint(createRequest(['foo']), {})
+    const response = await router.handleEndpoint(createRequest(['foo']), dummyMetadata)
     expect(response.error).toEqual('foo')
   })
 
   it('should return a promise when the endpoint does not', async () => {
     const router = createRouter({ foo: () => 'foo' }, {})
-    const response = router.handleEndpoint(createRequest(['foo']), {})
+    const response = router.handleEndpoint(createRequest(['foo']), dummyMetadata)
     expect(response).toBeInstanceOf(Promise)
   })
 })
@@ -116,14 +121,14 @@ describe('handleSocket', () => {
     const router = createRouter({}, {})
     const { sendMessage, socket } = createSocket()
     sendMessage({})
-    expect(router.handleSocket(socket, {})).rejects.toBeInstanceOf(HermesError)
+    expect(router.handleSocket(socket, dummyMetadata)).rejects.toBeInstanceOf(HermesError)
   })
 
   it('should reject requests when the __hermes__ field isn\'t equal to "socket"', () => {
     const router = createRouter({}, {})
     const { sendMessage, socket } = createSocket()
     sendMessage({ __hermes__: 'foo' })
-    expect(router.handleSocket(socket, {})).rejects.toBeInstanceOf(HermesError)
+    expect(router.handleSocket(socket, dummyMetadata)).rejects.toBeInstanceOf(HermesError)
   })
 
   it("should reject when the request doesn't include an address", () => {
@@ -135,21 +140,21 @@ describe('handleSocket', () => {
       path: ['echo'],
       args: [],
     })
-    expect(router.handleSocket(socket, {})).rejects.toBeInstanceOf(HermesError)
+    expect(router.handleSocket(socket, dummyMetadata)).rejects.toBeInstanceOf(HermesError)
   })
 
   it('should reject when the socket does not exist', () => {
     const router = createRouter({}, {})
     const { sendMessage, socket } = createSocket()
     sendMessage(createRequest(['example']))
-    expect(router.handleSocket(socket, {})).rejects.toBeInstanceOf(HermesError)
+    expect(router.handleSocket(socket, dummyMetadata)).rejects.toBeInstanceOf(HermesError)
   })
 
   it('should reject when the socket is not a function', () => {
     const router = createRouter({ example: { noop: async () => {} } }, {})
     const { sendMessage, socket } = createSocket()
     sendMessage(createRequest(['example']))
-    expect(router.handleSocket(socket, {})).rejects.toBeInstanceOf(HermesError)
+    expect(router.handleSocket(socket, dummyMetadata)).rejects.toBeInstanceOf(HermesError)
   })
 
   // TODO: Use an equivalent of expect.assertions once bun adds that
@@ -167,7 +172,7 @@ describe('handleSocket', () => {
     )
     const { sendMessage, socket } = createSocket()
     sendMessage(createRequest(['foo']))
-    await router.handleSocket(socket, {})
+    await router.handleSocket(socket, dummyMetadata)
   })
 
   // TODO: Use an equivalent of expect.assertions once bun adds that
@@ -176,13 +181,20 @@ describe('handleSocket', () => {
       {},
       {
         foo: async (_: any, metadata: RequestMetadata<{ foo: 'bar' }>) => {
-          expect(metadata).toEqual({ foo: 'bar' })
+          expect(metadata).toEqual({ ...dummyMetadata, foo: 'bar' })
+        },
+        bar: async (optional?: any) => {
+          expect(optional).not.toEqual({ ...dummyMetadata, foo: 'bar' })
         },
       },
     )
     const { sendMessage, socket } = createSocket()
     sendMessage(createRequest(['foo']))
-    await router.handleSocket(socket, { foo: 'bar' })
+    await router.handleSocket(socket, { ...dummyMetadata, foo: 'bar' })
+
+    const { sendMessage: sendMessage2, socket: socket2 } = createSocket()
+    sendMessage2(createRequest(['bar'], [undefined]))
+    await router.handleSocket(socket2, { ...dummyMetadata, foo: 'bar' })
   })
 
   it('should call onMessage when messages are pushed', async () => {
@@ -197,7 +209,7 @@ describe('handleSocket', () => {
     const { sendMessage, socket } = createSocket()
     sendMessage(createRequest(['foo']))
     sendMessage('foo')
-    await router.handleSocket(socket, {})
+    await router.handleSocket(socket, dummyMetadata)
   })
 
   it('should call onClose when the socket is closed', async () => {
@@ -212,14 +224,14 @@ describe('handleSocket', () => {
     const { sendMessage, socket } = createSocket()
     sendMessage(createRequest(['foo']))
     await socket.close()
-    await router.handleSocket(socket, {})
+    await router.handleSocket(socket, dummyMetadata)
   })
 
   it('should return a promise when the socket handler does not', async () => {
     const router = createRouter({}, { foo: () => {} })
     const { sendMessage, socket } = createSocket()
     sendMessage(createRequest(['foo']))
-    const response = router.handleSocket(socket, {})
+    const response = router.handleSocket(socket, dummyMetadata)
     expect(response).toBeInstanceOf(Promise)
   })
 })
