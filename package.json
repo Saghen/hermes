@@ -21,7 +21,7 @@
     "prepare": "husky install",
     "prepublish": "bun run build",
     "precommit": "lint-staged && bun run build && bun test",
-    "build": "tsc",
+    "build": "rm -r dist && tsc",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "format": "prettier --write 'src/*'"
