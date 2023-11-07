@@ -1,6 +1,6 @@
 {
   "name": "@saghen/hermes",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.0-alpha.2",
   "author": "Liam Dyer <liamcdyer@gmail.com>",
   "description": "Generic interface for one and two way communication layer",
   "repository": "https://github.com/Saghen/hermes",
