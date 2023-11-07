@@ -26,7 +26,7 @@ const portToSocket = (port: Runtime.Port): Socket<unknown, unknown> => {
 }
 
 export const listenOnMessage = (
-  browserRuntime: Runtime.Static,
+  browserRuntime: { onMessage: Runtime.Static['onMessage'] },
   router: Router<any, any>,
   address = 'default',
 ) => {
@@ -43,7 +43,7 @@ export const listenOnMessage = (
   return () => browserRuntime.onMessage.removeListener(listener)
 }
 export const listenOnMessageExternal = (
-  browserRuntime: Runtime.Static,
+  browserRuntime: { onMessageExternal: Runtime.Static['onMessageExternal'] },
   router: Router<any, any>,
   address = 'default',
 ) => {
@@ -60,7 +60,10 @@ export const listenOnMessageExternal = (
   return () => browserRuntime.onMessageExternal.removeListener(listener)
 }
 // FIXME: Doesn't handle address
-export const listenOnConnect = (browserRuntime: Runtime.Static, router: Router<any, any>) => {
+export const listenOnConnect = (
+  browserRuntime: { onConnect: Runtime.Static['onConnect'] },
+  router: Router<any, any>,
+) => {
   const listener = (port: Runtime.Port) => {
     router.handleSocket(portToSocket(port), { __hermes__: RequestMetadataSymbol })
   }
@@ -68,7 +71,7 @@ export const listenOnConnect = (browserRuntime: Runtime.Static, router: Router<a
   return () => browserRuntime.onConnect.removeListener(listener)
 }
 export const listenOnConnectExternal = (
-  browserRuntime: Runtime.Static,
+  browserRuntime: { onConnectExternal: Runtime.Static['onConnectExternal'] },
   router: Router<any, any>,
 ) => {
   const listener = (port: Runtime.Port) => {
@@ -79,12 +82,20 @@ export const listenOnConnectExternal = (
 }
 
 export const createEndpointTransport =
-  (browserRuntime: Runtime.Static, extensionId: string, address = 'default'): EndpointTransport =>
+  (
+    browserRuntime: { sendMessage: Runtime.Static['sendMessage'] },
+    extensionId: string,
+    address = 'default',
+  ): EndpointTransport =>
   (request) =>
     browserRuntime.sendMessage(extensionId, { address, ...request })
 
 export const createSocketTransport =
-  (browserRuntime: Runtime.Static, extensionId: string, address = 'default'): SocketTransport =>
+  (
+    browserRuntime: { connect: Runtime.Static['connect'] },
+    extensionId: string,
+    address = 'default',
+  ): SocketTransport =>
   async (request) => {
     const port = browserRuntime.connect(extensionId)
     port.postMessage({ address, ...request })
