@@ -15,7 +15,7 @@
     "./socket": "./dist/socket.js",
     "./transports/extension": "./dist/transports/extension.js",
     "./transports/loopback": "./dist/transports/loopback.js",
-    "./transports/web": "./dist/transports/web.js"
+    "./transports/web": "./dist/transports/web/index.js"
   },
   "scripts": {
     "prepare": "husky install",
