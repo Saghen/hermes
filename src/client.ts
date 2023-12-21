@@ -40,7 +40,6 @@ const createEndpointClientInternal = <Endpoints extends DeepRecord<Path, Endpoin
   endpointTransport: EndpointTransport,
   path: Path[] = [],
 ): EndpointClient<Endpoints> =>
-  // @ts-expect-error Typescript can't understand proxy types
   new Proxy(
     async (...args: any[]) => {
       const requestId = generateRandom()
@@ -66,7 +65,7 @@ const createEndpointClientInternal = <Endpoints extends DeepRecord<Path, Endpoin
         return createEndpointClientInternal(endpointTransport, [...path, pathPart])
       },
     },
-  )
+  ) as unknown as EndpointClient<Endpoints>
 
 /// Sockets
 // Removes the Socket argument from the handler if it's defined
@@ -78,8 +77,7 @@ type SocketClientHandler<Handler extends SocketHandler> = (
 export type SocketClient<Sockets extends DeepRecord<Path, SocketHandler>> = {
   [Path in keyof Sockets]: Sockets[Path] extends SocketHandler
     ? ClientHandler<SocketClientHandler<Sockets[Path]>>
-    : // @ts-expect-error Not sure how to tell typescript that this isn't a SocketHandler
-      SocketClient<Sockets[Path]>
+    : SocketClient<Exclude<Sockets[Path], SocketHandler>>
 }
 
 export const createSocketClient = <Sockets extends DeepRecord<Path, SocketHandler>>(

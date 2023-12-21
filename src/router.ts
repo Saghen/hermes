@@ -7,6 +7,8 @@ import {
   RequestMetadata,
   Response,
   SocketHandler,
+  errorToResponse,
+  valueToResponse,
 } from './common'
 import { Socket } from './socket'
 
@@ -21,27 +23,14 @@ export type Router<Endpoints extends DeepRecord<Path, EndpointHandler>, Sockets>
   handleSocket: (socket: Socket, metadata: RequestMetadata<Record<any, any>>) => Promise<void>
 }
 
-const valueToResponse =
-  (request: Request) =>
-  (value: any): Response => ({
-    __hermes__: 'endpoint',
-    requestId: request.requestId,
-    value,
-  })
-const errorToResponse =
-  (request: Request) =>
-  (error: any): Response => ({
-    __hermes__: 'endpoint',
-    requestId: request.requestId,
-    error: error instanceof Error ? error.message : String(error),
-  })
-
+// FIXME: OnError handler
 export const createRouter = <
   Endpoints extends DeepRecord<Path, EndpointHandler>,
   Sockets extends DeepRecord<Path, SocketHandler>,
 >(
   endpoints: Endpoints,
   sockets: Sockets,
+  disableMetadata = false,
 ): Router<Endpoints, Sockets> => ({
   endpoints,
   sockets,
@@ -51,12 +40,16 @@ export const createRouter = <
 
     const endpointHandler = getFunctionPath(request.path, endpoints)
     if (endpointHandler === undefined)
-      throw new HermesError(`Endpoint "${request.path}" does not exist`)
+      throw new HermesError(`Endpoint "${request.path.join('.')}" does not exist`)
     if (typeof endpointHandler !== 'function')
-      throw new HermesError(`Endpoint "${request.path}" is not a function`)
+      throw new HermesError(`Endpoint "${request.path.join('.')}" is not a function`)
     // FIXME: Check the number of arguments for the function and fill the args with undefined if needed
     return Promise.resolve()
-      .then(() => endpointHandler(...request.args, metadata))
+      .then(() =>
+        disableMetadata
+          ? endpointHandler(...request.args)
+          : endpointHandler(...request.args, metadata),
+      )
       .then(valueToResponse(request))
       .catch(errorToResponse(request))
   },
@@ -74,7 +67,11 @@ export const createRouter = <
       throw new HermesError(`Socket "${request.path}" is not a function`)
     // FIXME: Error handling should close the socket and send an error message to the client
     // FIXME: Check the number of arguments for the function and fill the args with undefined if needed
-    return Promise.resolve().then(() => socketHandler(socket, ...request.args, metadata))
+    return Promise.resolve().then(() =>
+      disableMetadata
+        ? socketHandler(socket, ...request.args)
+        : socketHandler(socket, ...request.args, metadata),
+    )
   },
 })
 
@@ -94,8 +91,8 @@ function assertValidRequest(
   }
 }
 
+// FIXME: security issue and using typeof value === 'function' ? undefined : value?.[pathPart]
+// doesn't work when using a proxy for the routes
 const getFunctionPath = <T extends Function>(path: Path[], record: DeepRecord<Path, T>) =>
-  path.reduce<T | DeepRecord<Path, T> | undefined>(
-    (value, pathPart) => (typeof value === 'function' ? undefined : value?.[pathPart]),
-    record,
-  )
+  // @ts-ignore
+  path.reduce<T | DeepRecord<Path, T> | undefined>((value, pathPart) => value?.[pathPart], record)

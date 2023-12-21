@@ -7,6 +7,7 @@ export type {
   SocketTransport,
   EndpointHandler,
   SocketHandler,
+  RequestMetadataSymbol,
 } from './common'
 
 export { createRouter } from './router'
