@@ -12,7 +12,10 @@ import {
 } from './common'
 import { Socket } from './socket'
 
-export type Router<Endpoints extends DeepRecord<Path, EndpointHandler>, Sockets> = {
+export type Router<
+  Endpoints extends DeepRecord<Path, EndpointHandler>,
+  Sockets extends DeepRecord<Path, SocketHandler<any, any>>,
+> = {
   endpoints: Endpoints
   sockets: Sockets
 
@@ -26,7 +29,7 @@ export type Router<Endpoints extends DeepRecord<Path, EndpointHandler>, Sockets>
 // FIXME: OnError handler
 export const createRouter = <
   Endpoints extends DeepRecord<Path, EndpointHandler>,
-  Sockets extends DeepRecord<Path, SocketHandler>,
+  Sockets extends DeepRecord<Path, SocketHandler<any, any>>,
 >(
   endpoints: Endpoints,
   sockets: Sockets,

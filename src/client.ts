@@ -28,8 +28,7 @@ type ClientHandler<Handler extends EndpointHandler> = (
 export type EndpointClient<Endpoints extends DeepRecord<Path, EndpointHandler>> = {
   [Path in keyof Endpoints]: Endpoints[Path] extends EndpointHandler
     ? ClientHandler<Endpoints[Path]>
-    : // @ts-expect-error Not sure how to tell typescript that this isn't a EndpointHandler
-      EndpointClient<Endpoints[Path]>
+    : EndpointClient<Exclude<Endpoints[Path], EndpointHandler>>
 }
 
 export const createEndpointClient = <Endpoints extends DeepRecord<Path, EndpointHandler>>(
